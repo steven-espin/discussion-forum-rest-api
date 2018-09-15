@@ -23,6 +23,11 @@ def forums():
     all_forums = cur.execute('SELECT * FROM forums;').fetchall()
     return jsonify(all_forums)
 
+@app.errorhandler(404)
+def page_not_found(e):
+    return "<h1>404</h1><p>The resource could not be found.</p>", 404
+
+
 ## Set up CLI command to initialize db according to init.sql schema file
 def get_db():
     db = getattr(Flask, '_database', None)
