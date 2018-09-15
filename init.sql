@@ -1,6 +1,9 @@
-drop table if exists entries;
-create table entries (
+drop table if exists forums;
+create table forums (
   id integer primary key autoincrement,
-  title text not null,
-  'text' text not null
+  author text not null,
+  creator text not null
 );
+
+INSERT INTO forums VALUES(1, 'redis', 'alice');
+INSERT INTO forums VALUES(2, 'mongodb', 'bob');
