@@ -15,14 +15,29 @@ def dict_factory(cursor, row):
 def home():
     return "<h1>Discussion Forum API</h1><p>This site is a prototype API for a discussion forum.</p>"
 
+
+## HTTP GET methods
 @app.route('/forums', methods=['GET'])
-def forums():
+def forums_all():
     conn = get_db()
     conn.row_factory = dict_factory
     cur = conn.cursor()
     all_forums = cur.execute('SELECT * FROM forums;').fetchall()
     return jsonify(all_forums)
 
+@app.route('/forums/<forum_id>', methods=['GET'])
+def filter_forum(forum_id):
+    conn = get_db()
+    conn.row_factory = dict_factory
+    cur = conn.cursor()
+    all_forums = cur.execute("SELECT * FROM forums WHERE id=%s;" % forum_id).fetchall()
+    return jsonify(all_forums)
+
+@app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
+def filter_thread(forum_id, thread_id):
+    return "hello %s %s" % (forum_id, thread_id)
+
+## Resource path not valid
 @app.errorhandler(404)
 def page_not_found(e):
     return "<h1>404</h1><p>The resource could not be found.</p>", 404
@@ -35,11 +50,6 @@ def get_db():
         db = Flask._database = sqlite3.connect(DATABASE)
     return db
 
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(Flask, '_database', None)
-    if db is not None:
-        db.close()
 
 def init():
     with app.app_context():
