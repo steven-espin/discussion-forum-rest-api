@@ -1,9 +1,13 @@
 import flask, sqlite3, click
 from flask import Flask, request, jsonify
+from flask_basicauth import BasicAuth
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 DATABASE = 'forum.db'
+
+basic_auth = BasicAuth(app)
+
 
 def dict_factory(cursor, row):
     d = {}
@@ -30,12 +34,16 @@ def filter_forum(forum_id):
     conn = get_db()
     conn.row_factory = dict_factory
     cur = conn.cursor()
-    all_forums = cur.execute("SELECT * FROM forums WHERE id=%s;" % forum_id).fetchall()
-    return jsonify(all_forums)
+    forum = cur.execute("SELECT thread_id, title, creator, timestamp FROM threads WHERE forum_id=%s;" % forum_id).fetchall()
+    return jsonify(forum)
 
 @app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
 def filter_thread(forum_id, thread_id):
-    return "hello %s %s" % (forum_id, thread_id)
+    conn = get_db()
+    conn.row_factory = dict_factory
+    cur = conn.cursor()
+    thread = cur.execute("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s;" % (forum_id, thread_id)).fetchall()
+    return jsonify(thread)
 
 ## Resource path not valid
 @app.errorhandler(404)
