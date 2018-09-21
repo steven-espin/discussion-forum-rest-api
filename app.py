@@ -1,6 +1,7 @@
-import flask, sqlite3, click
+import flask, sqlite3, click, logging, json
 from flask import Flask, request, jsonify
 from flask_basicauth import BasicAuth
+
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -8,17 +9,23 @@ DATABASE = 'forum.db'
 
 class dbAuth(BasicAuth):
     def check_credentials(this, username, password):
-        return True
+        return is_valid_user(username, password)
 
-def check_user_credentials(username, password):
-    return True
+def is_valid_user(username, password):
+    query = "SELECT EXISTS (SELECT * FROM users WHERE username='%s' AND password='%s');" % (username, password)
+    result = query_db(query)
+
+    if (result[0].values() == [0]):
+        app.logger.info("Access Denied")
+        return False
+    else:
+        return True
 
 basicAuth = dbAuth(app)
 
 
 ## Home page
 @app.route('/', methods=['GET'])
-@basicAuth.required
 def home():
     return "<h1>Discussion Forum API</h1><p>This site is a prototype API for a discussion forum.</p>"
 
@@ -38,6 +45,15 @@ def filter_forum(forum_id):
 def filter_thread(forum_id, thread_id):
     thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s;" % (forum_id, thread_id))
     return jsonify(thread)
+
+## HTTP POST methods
+
+## HTTP PUT methods
+@app.route('/users/<username>', methods = ['PUT'])
+@basicAuth.required
+def change_password(username):
+    return "putting %s" % username
+
 
 ## Resource path not valid
 @app.errorhandler(404)
@@ -71,6 +87,7 @@ def query_db(query):
     cur = conn.cursor()
     result = cur.execute(query).fetchall()
     return result
+
 
 ## Custom CLI command
 @app.cli.command()
