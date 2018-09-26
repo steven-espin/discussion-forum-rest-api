@@ -28,9 +28,9 @@ create table threads (
   forum_id integer not null
 );
 
-INSERT INTO threads VALUES(1, "Thread 1 Under Forum 2", "Bob", "Tue", 2);
-INSERT INTO threads VALUES(2, "Thread 2 Under Forum 2", "Charlie", "wed", 2);
-INSERT INTO threads VALUES(3, "Thread 1 Under Forum 3", "Charlie", "wed", 3);
+INSERT INTO threads VALUES(1, "Thread 1 Under Forum 2", "Bob", "Wed, 26 Sep 2018 23:02:59 GMT", 2);
+INSERT INTO threads VALUES(2, "Thread 2 Under Forum 2", "Charlie", "Wed, 26 Sep 2018 23:03:59 GMT", 2);
+INSERT INTO threads VALUES(3, "Thread 1 Under Forum 3", "Charlie", "Wed, 26 Sep 2018 23:04:59 GMT", 3);
 
 
 drop table if exists posts;
@@ -43,6 +43,6 @@ create table posts (
   forum_id integer not null
 );
 
-INSERT INTO posts VALUES(1, "Bob", "Post 1 Under thread 1 and Forum 2", "Tue", 1, 2);
-INSERT INTO posts VALUES(2, "Alice", "Post 2 Under thread 2 and Forum 2", "wed", 2, 2);
-INSERT INTO posts VALUES(3, "Alice", "Post 3 Under thread 3 and Forum 3", "wed", 3, 3);
+INSERT INTO posts VALUES(1, "Bob", "Post 1 Under thread 1 and Forum 2", "Wed, 26 Sep 2018 23:02:59 GMT", 1, 2);
+INSERT INTO posts VALUES(2, "Alice", "Post 2 Under thread 2 and Forum 2", "Wed, 26 Sep 2018 23:03:59 GMT", 2, 2);
+INSERT INTO posts VALUES(3, "Alice", "Post 3 Under thread 3 and Forum 3", "Wed, 26 Sep 2018 23:04:59 GMT", 3, 3);

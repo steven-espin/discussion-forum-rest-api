@@ -61,12 +61,12 @@ def forums_all():
 
 @app.route('/forums/<forum_id>', methods=['GET'])
 def filter_forum(forum_id):
-    forum = query_db("SELECT thread_id, title, creator, timestamp FROM threads WHERE forum_id=%s;" % forum_id) #need to do reverse chron order
+    forum = query_db("SELECT thread_id, title, creator, timestamp FROM threads WHERE forum_id=%s ORDER BY strftime(timestamp) DESC;" % forum_id) #need to do reverse chron order
     return jsonify(forum)
 
 @app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
 def filter_thread(forum_id, thread_id):
-    thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s;" % (forum_id, thread_id)) #reverse chron
+    thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id)) #reverse chron
     return jsonify(thread)
 
 ## HTTP POST methods
