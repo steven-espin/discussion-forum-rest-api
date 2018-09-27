@@ -7,44 +7,18 @@ app = flask.Flask(__name__)
 app.config["DEBUG"] = True
 DATABASE = 'forum.db'
 
+## Basic authentication
 class dbAuth(BasicAuth):
     def check_credentials(this, username, password):
         app.config["username"] = username
-        return is_valid_user(username, password)
+        user_esists = existsInDB("SELECT EXISTS (SELECT * FROM users WHERE username='%s' AND password='%s');" % (username, password))
 
-def is_valid_user(username, password):
-    query = "SELECT EXISTS (SELECT * FROM users WHERE username='%s' AND password='%s');" % (username, password)
-    result = query_db(query)
-
-    if (result[0].values() == [0]):
-        app.logger.info("Access Denied")
-        return False
-    else:
-        return True
+        if (not user_esists):
+            raise InvalidUsage('401 UNAUTHORIZED', status_code=401)
+        else:
+            return True
 
 basicAuth = dbAuth(app)
-
-## exception handler
-class InvalidUsage(Exception):
-    status_code = 400
-
-    def __init__(self, message, status_code=None, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        if status_code is not None:
-            self.status_code = status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
-
-@app.errorhandler(InvalidUsage)
-def handle_invalid_usage(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
 
 ## Home page
 @app.route('/', methods=['GET'])
@@ -59,12 +33,16 @@ def forums_all():
 
 @app.route('/forums/<forum_id>', methods=['GET'])
 def filter_forum(forum_id):
-    forum = query_db("SELECT thread_id, title, creator, timestamp FROM threads WHERE forum_id=%s ORDER BY strftime(timestamp) DESC;" % forum_id) #need to do reverse chron order
+    forum = query_db("SELECT thread_id, title, creator, timestamp FROM threads WHERE forum_id=%s ORDER BY strftime(timestamp) DESC;" % forum_id)
+    if not forum:
+        raise InvalidUsage('HTTP 404 Not Found', status_code=404)
     return jsonify(forum)
 
 @app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
 def filter_thread(forum_id, thread_id):
-    thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id)) #reverse chron
+    thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id))
+    if not thread:
+        raise InvalidUsage('HTTP 404 Not Found', status_code=404)
     return jsonify(thread)
 
 ## HTTP POST methods
@@ -128,17 +106,6 @@ def create_user():
         resp = Response('{"message": "Successfully Created"}', mimetype='application/json')
         return resp
 
-def existsInDB(query):
-    result = query_db(query)
-    return result[0].values()[0]
-
-def getLatestID():
-    id = query_db("SELECT last_insert_rowid()")
-    return id[0].values()[0]
-
-def getTimestamp():
-    return datetime.datetime.utcnow().strftime("%a, %d %b %Y %X GMT")
-
 ## HTTP PUT methods
 @app.route('/users/<username>', methods = ['PUT'])
 @basicAuth.required
@@ -160,6 +127,17 @@ def change_password(username):
 def page_not_found(e):
     return "<h1>404</h1><p>The resource could not b e found.</p>", 404
 
+## Query helper functions
+def existsInDB(query):
+    result = query_db(query)
+    return result[0].values()[0]
+
+def getLatestID():
+    id = query_db("SELECT last_insert_rowid()")
+    return id[0].values()[0]
+
+def getTimestamp():
+    return datetime.datetime.utcnow().strftime("%a, %d %b %Y %X GMT")
 
 ## Database helper functions
 def get_db():
@@ -189,12 +167,33 @@ def query_db(query):
     conn.commit()
     return result
 
+## exception handler from http://flask.pocoo.org/docs/0.12/patterns/apierrors/
+class InvalidUsage(Exception):
+    status_code = 400
+
+    def __init__(self, message, status_code=None, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
+@app.errorhandler(InvalidUsage)
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
 
 ## Custom CLI command
 @app.cli.command()
 def init_db():
     init()
 
-
+## Run app
 if __name__ == "__main__":
     app.run()
