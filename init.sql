@@ -6,6 +6,7 @@ create table users (
 
 INSERT INTO users VALUES('rickybobby', 'aliceInWonderLand');
 INSERT INTO users VALUES('yeezus', 'iamagod');
+INSERT INTO users VALUES('user', '123');
 
 DROP TABLE IF EXISTS forums;
 CREATE TABLE forums (
@@ -14,9 +15,8 @@ CREATE TABLE forums (
   creator TEXT NOT NULL
 );
 
-INSERT INTO forums (name, creator) VALUES('Forum 1', 'alice');
-INSERT INTO forums (name, creator) VALUES('Forum 2', 'bob');
-INSERT INTO forums (name, creator) VALUES('Forum 3', 'scoop');
+INSERT INTO forums (name, creator) VALUES('Forum 1 Redis', 'rickybobby');
+INSERT INTO forums (name, creator) VALUES('Forum 2 MongoDB', 'user');
 
 
 drop table if exists threads;
@@ -28,9 +28,8 @@ create table threads (
   forum_id integer not null
 );
 
-INSERT INTO threads VALUES(1, "Thread 1 Under Forum 2", "Bob", "Wed, 26 Sep 2018 23:02:59 GMT", 2);
-INSERT INTO threads VALUES(2, "Thread 2 Under Forum 2", "Charlie", "Wed, 26 Sep 2018 23:03:59 GMT", 2);
-INSERT INTO threads VALUES(3, "Thread 1 Under Forum 3", "Charlie", "Wed, 26 Sep 2018 23:04:59 GMT", 3);
+INSERT INTO threads VALUES(1, "Does anyone know how to start Redis?", "Bob", "Wed, 26 Sep 2018 23:02:59 GMT", 1);
+INSERT INTO threads VALUES(2, "Has anyone heard of Edis?", "Charlie", "Wed, 26 Sep 2018 23:03:59 GMT", 1);
 
 
 drop table if exists posts;
@@ -43,6 +42,8 @@ create table posts (
   forum_id integer not null
 );
 
-INSERT INTO posts VALUES(1, "Bob", "Post 1 Under thread 1 and Forum 2", "Wed, 26 Sep 2018 23:02:59 GMT", 1, 2);
-INSERT INTO posts VALUES(2, "Alice", "Post 2 Under thread 2 and Forum 2", "Wed, 26 Sep 2018 23:03:59 GMT", 2, 2);
-INSERT INTO posts VALUES(3, "Alice", "Post 3 Under thread 3 and Forum 3", "Wed, 26 Sep 2018 23:04:59 GMT", 3, 3);
+INSERT INTO posts VALUES(1, "Bob", "Does anyone know how to start Redis?", "Wed, 26 Sep 2018 23:02:59 GMT", 1, 1);
+INSERT INTO posts VALUES(2, "Bob", "tried restarting your router?", "Wed, 26 Sep 2018 23:02:59 GMT", 1, 1);
+INSERT INTO posts VALUES(3, "Bob", "Red is beautiful.", "Wed, 26 Sep 2018 23:02:59 GMT", 1, 1);
+INSERT INTO posts VALUES(4, "Charlie", "Has anyone heard of Edis?", "Wed, 26 Sep 2018 23:03:59 GMT", 2, 1);
+INSERT INTO posts VALUES(5, "Charlie", "Nope I have never heard of edis, but i have heard of Redis", "Wed, 26 Sep 2018 23:07:59 GMT", 2, 1);

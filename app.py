@@ -25,7 +25,6 @@ def is_valid_user(username, password):
 basicAuth = dbAuth(app)
 
 ## exception handler
-
 class InvalidUsage(Exception):
     status_code = 400
 
@@ -51,7 +50,6 @@ def handle_invalid_usage(error):
 @app.route('/', methods=['GET'])
 def home():
     return "<h1>Discussion Forum API</h1><p>This site is a prototype API for a discussion forum.</p>"
-
 
 ## HTTP GET methods
 @app.route('/forums', methods=['GET'])
@@ -113,6 +111,7 @@ def create_post(forum_id, thread_id):
     else:
         timestamp = getTimestamp()
         query_db("INSERT INTO posts (author, text, timestamp, thread_id, forum_id) VALUES('%s', '%s', '%s', '%s', '%s');" % (app.config['username'], reqJSON.get('text').replace("'", "''"), timestamp, thread_id, forum_id))
+        query_db("UPDATE threads SET timestamp = '%s' WHERE thread_id='%s';" % (timestamp, thread_id))
         resp = Response('{"message": "Successfully Created"}', mimetype='application/json')
         resp.headers['Location'] = "/forums/%s/%s" % (forum_id, thread_id)
         return resp
