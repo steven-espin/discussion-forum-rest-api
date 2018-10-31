@@ -34,8 +34,7 @@ def home():
 @app.route('/forums', methods=['GET'])
 def forums_all():
     all_forums = query_db('SELECT * FROM forums;')
-    test = query_shard_db('SELECT * FROM posts;', 1)
-    return jsonify(test)
+    return jsonify(all_forums)
 
 @app.route('/forums/<forum_id>', methods=['GET'])
 def filter_forum(forum_id):
@@ -46,13 +45,10 @@ def filter_forum(forum_id):
 
 @app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
 def filter_thread(forum_id, thread_id):
-    #thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id))
-    #if not thread:
-        #raise InvalidUsage('HTTP 404 Not Found', status_code=404)
-    #return jsonify(thread)
-
     query = "SELECT author, message, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id)
-    thread = query_shard_db(query, 1)
+    shard_num = get_shard_num(thread_id)
+    app.logger.info(shard_num)
+    thread = query_shard_db(query, shard_num)
     if not thread:
         raise InvalidUsage('HTTP 404 Not Found', status_code=404)
     return jsonify(thread)
@@ -104,15 +100,16 @@ def create_post(forum_id, thread_id):
         text = reqJSON.get('text').replace("'", "''")
         author = app.config['username']
         data = (guid, forum_id, thread_id, author, timestamp, text)
+        shard_name = get_db_name(thread_id)
+        app.logger.info(shard_name)
 
-        conn = get_db(SHARD1, sqlite3.PARSE_DECLTYPES)
-        conn = sqlite3.connect(SHARD1, detect_types = sqlite3.PARSE_DECLTYPES)
+        conn = get_db(shard_name, sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(shard_name, detect_types = sqlite3.PARSE_DECLTYPES)
         conn.text_factory = str
         conn.row_factory = dict_factory
         c = conn.cursor()
         c.execute('INSERT INTO posts VALUES(?,?,?,?,?,?);', data)
         conn.commit()
-
 
         query_db("UPDATE threads SET timestamp = '%s' WHERE thread_id='%s';" % (timestamp, thread_id))
         resp = Response('{"message": "Successfully Created"}', mimetype='application/json')
@@ -163,6 +160,19 @@ def getLatestID():
 
 def getTimestamp():
     return datetime.datetime.utcnow().strftime("%a, %d %b %Y %X GMT")
+
+def get_db_name(thread_id):
+    shard_num = int(thread_id) % 3
+    if shard_num == 0:
+        return SHARD1
+    elif shard_num == 1:
+        return SHARD2
+    else:
+        return SHARD3
+
+def get_shard_num(thread_id):
+    shard_num = int(thread_id) % 3
+    return shard_num
 
 ## Database helper functions
 @app.teardown_appcontext
@@ -243,10 +253,10 @@ def query_shard_db(query, shard_num):
     sqlite3.register_converter('GUID', lambda b: uuid.UUID(bytes_le=b))
     sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
 
-    if shard_num == 1:
+    if shard_num == 0:
         db = get_db(SHARD1)
         conn = sqlite3.connect(SHARD1, detect_types = sqlite3.PARSE_DECLTYPES)
-    elif shard_num == 2:
+    elif shard_num == 1:
         db = get_db(SHARD2)
         conn = sqlite3.connect(SHARD2, detect_types = sqlite3.PARSE_DECLTYPES)
     else:
