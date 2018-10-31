@@ -1,11 +1,16 @@
-import flask, sqlite3, click, logging, json, datetime
-from flask import Flask, request, jsonify, Response
+import flask, sqlite3, click, logging, json, datetime, uuid, sys, cmd
+from flask import Flask, request, jsonify, Response, g
 from flask_basicauth import BasicAuth
 
+sqlite3.register_converter('GUID', lambda b: uuid.UUID(bytes_le=b))
+sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
-DATABASE = 'forum.db'
+DATABASE = 'forum1.db'
+SHARD1 = 'forum2.db'
+SHARD2 = 'forum3.db'
+SHARD3 = 'forum4.db'
 
 ## Basic authentication
 class dbAuth(BasicAuth):
@@ -29,7 +34,8 @@ def home():
 @app.route('/forums', methods=['GET'])
 def forums_all():
     all_forums = query_db('SELECT * FROM forums;')
-    return jsonify(all_forums)
+    test = query_shard_db('SELECT * FROM posts;', 1)
+    return jsonify(test)
 
 @app.route('/forums/<forum_id>', methods=['GET'])
 def filter_forum(forum_id):
@@ -40,7 +46,13 @@ def filter_forum(forum_id):
 
 @app.route('/forums/<forum_id>/<thread_id>', methods=['GET'])
 def filter_thread(forum_id, thread_id):
-    thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id))
+    #thread = query_db("SELECT author, text, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id))
+    #if not thread:
+        #raise InvalidUsage('HTTP 404 Not Found', status_code=404)
+    #return jsonify(thread)
+
+    query = "SELECT author, message, timestamp FROM posts WHERE forum_id=%s AND thread_id=%s ORDER BY strftime(timestamp);" % (forum_id, thread_id)
+    thread = query_shard_db(query, 1)
     if not thread:
         raise InvalidUsage('HTTP 404 Not Found', status_code=404)
     return jsonify(thread)
@@ -87,8 +99,21 @@ def create_post(forum_id, thread_id):
     if(not thread_exists):
         raise InvalidUsage('HTTP 404 Not Found', status_code=404)
     else:
+        guid = uuid.uuid4()
         timestamp = getTimestamp()
-        query_db("INSERT INTO posts (author, text, timestamp, thread_id, forum_id) VALUES('%s', '%s', '%s', '%s', '%s');" % (app.config['username'], reqJSON.get('text').replace("'", "''"), timestamp, thread_id, forum_id))
+        text = reqJSON.get('text').replace("'", "''")
+        author = app.config['username']
+        data = (guid, forum_id, thread_id, author, timestamp, text)
+
+        conn = get_db(SHARD1, sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(SHARD1, detect_types = sqlite3.PARSE_DECLTYPES)
+        conn.text_factory = str
+        conn.row_factory = dict_factory
+        c = conn.cursor()
+        c.execute('INSERT INTO posts VALUES(?,?,?,?,?,?);', data)
+        conn.commit()
+
+
         query_db("UPDATE threads SET timestamp = '%s' WHERE thread_id='%s';" % (timestamp, thread_id))
         resp = Response('{"message": "Successfully Created"}', mimetype='application/json')
         resp.headers['Location'] = "/forums/%s/%s" % (forum_id, thread_id)
@@ -140,18 +165,64 @@ def getTimestamp():
     return datetime.datetime.utcnow().strftime("%a, %d %b %Y %X GMT")
 
 ## Database helper functions
-def get_db():
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def get_db(db_name, detect_types=0):
     db = getattr(Flask, '_database', None)
     if db is None:
-        db = Flask._database = sqlite3.connect(DATABASE)
+        db = Flask._database = sqlite3.connect(db_name, detect_types=detect_types)
+        db.row_factory = dict_factory
     return db
+
 
 def init():
     with app.app_context():
-        db = get_db()
-        with app.open_resource('init.sql', mode='r') as f:
-            db.cursor().executescript(f.read())
-        db.commit()
+        db_names = [DATABASE, SHARD1, SHARD2, SHARD3]
+        app.logger.info("hello")
+
+
+        for db_name in db_names:
+            if db_name == DATABASE: #rest of tables
+                print("rest of db")
+                db = get_db(db_name)
+                with app.open_resource('init.sql', mode='r') as f:
+                    db.cursor().executescript(f.read())
+                db.commit()
+            else:
+                print("shard: " + db_name)
+                sqlite3.register_converter('GUID', lambda b: uuid.UUID(bytes_le=b))
+                sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
+
+                db = get_db(db_name)
+                conn = sqlite3.connect(db_name, detect_types = sqlite3.PARSE_DECLTYPES)
+
+                c = conn.cursor()
+
+                if sys.version_info[0] < 3:
+                    conn.text_factory = lambda x: unicode(x, 'utf-8', 'ignore')
+
+                c.execute('drop table if exists posts')
+                c.execute('CREATE TABLE posts(guid GUID PRIMARY KEY, forum_id INTEGER, thread_id INTEGER, author TEXT, timestamp TEXT, message TEXT)')
+
+                guid = uuid.uuid4()
+                print(guid)
+                forum_id = 1
+                thread_id = 1
+                author = 'sam'
+                timestamp = 'today'
+                message = 'this is some good test data'
+                data = (guid, forum_id, thread_id, author, timestamp, message)
+                c.execute('INSERT INTO posts VALUES(?,?,?,?,?,?);', data)
+                conn.commit()
+                c.execute('SELECT * FROM posts')
+                print 'Result Data:', c.fetchall()
+
+                conn.commit()
+
 
 def dict_factory(cursor, row):
     d = {}
@@ -160,12 +231,39 @@ def dict_factory(cursor, row):
     return d
 
 def query_db(query):
-    conn = get_db()
+    conn = get_db(DATABASE)
     conn.row_factory = dict_factory
     cur = conn.cursor()
     result = cur.execute(query).fetchall()
     conn.commit()
     return result
+
+
+def query_shard_db(query, shard_num):
+    sqlite3.register_converter('GUID', lambda b: uuid.UUID(bytes_le=b))
+    sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
+
+    if shard_num == 1:
+        db = get_db(SHARD1)
+        conn = sqlite3.connect(SHARD1, detect_types = sqlite3.PARSE_DECLTYPES)
+    elif shard_num == 2:
+        db = get_db(SHARD2)
+        conn = sqlite3.connect(SHARD2, detect_types = sqlite3.PARSE_DECLTYPES)
+    else:
+        db = get_db(SHARD3)
+        conn = sqlite3.connect(SHARD3, detect_types = sqlite3.PARSE_DECLTYPES)
+
+    conn.row_factory = dict_factory
+    c = conn.cursor()
+    app.logger.info(query)
+    c.execute(query)
+    result = c.fetchall()
+    conn.commit()
+    return result
+
+def make_dicts(cursor, row):
+    return dict((cursor.description[idx][0], value)
+        for idx, value in enumerate(row))
 
 ## exception handler from http://flask.pocoo.org/docs/0.12/patterns/apierrors/
 class InvalidUsage(Exception):

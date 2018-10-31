@@ -33,15 +33,15 @@ INSERT INTO threads VALUES(1, "Does anyone know how to start Redis?", "Bob", "We
 
 
 drop table if exists posts;
-create table posts (
-  post_id integer primary key autoincrement,
-  author text not null,
-  text text not null,
-  timestamp text not null,
-  thread_id integer not null,
-  forum_id integer not null
-);
+--create table posts (
+--  post_id integer primary key autoincrement,
+--  author text not null,
+--  text text not null,
+--  timestamp text not null,
+--  thread_id integer not null,
+--  forum_id integer not null
+--);
 
-INSERT INTO posts VALUES(1, "Bob", "Does anyone know how to start Redis?", "Wed, 01 Sep 2018 01:03:59 GMT", 1, 1);
-INSERT INTO posts VALUES(2, "Bob", "tried restarting your router?", "Wed, 01 Sep 2018 03:02:59 GMT", 1, 1);
-INSERT INTO posts VALUES(3, "Bob", "Red is beautiful.", "Wed, 01 Sep 2018 03:05:59 GMT", 1, 1);
+--INSERT INTO posts VALUES(1, "Bob", "Does anyone know how to start Redis?", "Wed, 01 Sep 2018 01:03:59 GMT", 1, 1);
+--INSERT INTO posts VALUES(2, "Bob", "tried restarting your router?", "Wed, 01 Sep 2018 03:02:59 GMT", 1, 1);
+--INSERT INTO posts VALUES(3, "Bob", "Red is beautiful.", "Wed, 01 Sep 2018 03:05:59 GMT", 1, 1);
